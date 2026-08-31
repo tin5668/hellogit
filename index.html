@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="iPhone購入管理">
+  <meta name="theme-color" content="#f2f2f7">
+  <title>iPhone購入管理</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+</head>
+<body>
+
+  <!-- ===== ホーム画面 ===== -->
+  <div id="view-home" class="view active">
+    <header class="header">
+      <h1 class="header-title">iPhone購入管理</h1>
+    </header>
+
+    <div class="summary-card">
+      <div class="summary-row">
+        <span class="summary-label">未転記</span>
+        <span class="summary-value" id="unsynced-count">0件</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">合計</span>
+        <span class="summary-value amount" id="unsynced-total">0円</span>
+      </div>
+      <button class="btn btn-primary" id="btn-sync" disabled>
+        スプレッドシートへ転記
+      </button>
+    </div>
+
+    <section class="list-section">
+      <h2 class="list-section-title">購入リスト</h2>
+      <ul class="purchase-list" id="purchase-list"></ul>
+      <div class="empty-state" id="empty-state">
+        <div class="empty-state-icon">📱</div>
+        <p class="empty-state-text">購入情報がありません<br>右下の＋ボタンから追加してください</p>
+      </div>
+    </section>
+
+    <button class="fab" id="btn-add" aria-label="新規追加">＋</button>
+  </div>
+
+  <!-- ===== 購入追加画面 ===== -->
+  <div id="view-add" class="view">
+    <header class="header">
+      <button class="header-back" id="btn-back" aria-label="戻る">← 戻る</button>
+      <h1 class="header-title">購入情報入力</h1>
+    </header>
+
+    <div class="form-container">
+      <!-- 1. 使用ID -->
+      <div class="form-step" data-step="1">
+        <div class="form-step-label">
+          <span class="form-step-number">1</span> 使用するID
+        </div>
+        <div class="choice-group" id="choices-user-id"></div>
+      </div>
+
+      <!-- 2. メールアドレス -->
+      <div class="form-step" data-step="2">
+        <div class="form-step-label">
+          <span class="form-step-number">2</span> 使用するメールアドレス
+        </div>
+        <div class="choice-group" id="choices-email"></div>
+      </div>
+
+      <!-- 3. 機種 -->
+      <div class="form-step" data-step="3">
+        <div class="form-step-label">
+          <span class="form-step-number">3</span> 購入する機種
+        </div>
+        <div class="choice-group" id="choices-model"></div>
+      </div>
+
+      <!-- 4. 色 -->
+      <div class="form-step" data-step="4">
+        <div class="form-step-label">
+          <span class="form-step-number">4</span> 色
+        </div>
+        <div class="choice-group" id="choices-color"></div>
+      </div>
+
+      <!-- 5. 個数 -->
+      <div class="form-step" data-step="5">
+        <div class="form-step-label">
+          <span class="form-step-number">5</span> 購入個数
+        </div>
+        <div class="quantity-control">
+          <button type="button" class="quantity-btn" id="qty-minus" aria-label="減らす">−</button>
+          <input type="number" class="quantity-value" id="qty-input" value="1" min="1" inputmode="numeric">
+          <span class="quantity-unit">台</span>
+          <button type="button" class="quantity-btn" id="qty-plus" aria-label="増やす">＋</button>
+        </div>
+      </div>
+
+      <!-- 6. クレジットカード -->
+      <div class="form-step" data-step="6">
+        <div class="form-step-label">
+          <span class="form-step-number">6</span> 使用するクレジットカード
+        </div>
+        <div class="choice-group" id="choices-card"></div>
+      </div>
+
+      <!-- 7. 注文番号 -->
+      <div class="form-step" data-step="7">
+        <div class="form-step-label">
+          <span class="form-step-number">7</span> 注文番号
+        </div>
+        <input type="text" class="text-input" id="order-number" placeholder="例: W123456789" autocomplete="off" autocapitalize="characters">
+        <div class="warning-banner" id="duplicate-warning">
+          ⚠ 同じ注文番号がすでに登録されています
+        </div>
+      </div>
+
+      <!-- 8. 合計金額 -->
+      <div class="form-step" data-step="8">
+        <div class="form-step-label">
+          <span class="form-step-number">8</span> 合計金額
+        </div>
+        <div class="total-display" style="position:static;margin:0;box-shadow:none;padding:8px 0;">
+          <div class="total-breakdown" id="total-breakdown">機種を選択してください</div>
+          <div class="total-amount" id="total-amount">—</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="submit-bar">
+      <button class="btn btn-primary" id="btn-submit" disabled>
+        この内容で追加
+      </button>
+    </div>
+  </div>
+
+  <!-- トースト通知 -->
+  <div class="toast" id="toast"></div>
+
+  <!-- 確認ダイアログ -->
+  <div class="dialog-overlay" id="dialog-overlay">
+    <div class="dialog">
+      <p class="dialog-title" id="dialog-title">確認</p>
+      <p class="dialog-message" id="dialog-message"></p>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary" id="dialog-cancel">キャンセル</button>
+        <button class="btn btn-danger" id="dialog-confirm">削除</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ローディング -->
+  <div class="loading-overlay" id="loading-overlay">
+    <div class="loading-spinner"></div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/add.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
