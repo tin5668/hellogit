@@ -1,27 +1,46 @@
 /**
  * iPhone購入管理 - Google Apps Script
  *
+ * 対象スプレッドシート: りんご
+ * 対象シート: 2026年
+ *
  * セットアップ手順:
- * 1. Googleスプレッドシートを新規作成
- * 2. 拡張機能 > Apps Script を開く
- * 3. このコードを貼り付け
- * 4. SPREADSHEET_ID を自分のスプレッドシートIDに変更
- * 5. デプロイ > 新しいデプロイ > ウェブアプリ
+ * 1. スプレッドシートで 拡張機能 > Apps Script を開く
+ * 2. このコードを貼り付け
+ * 3. デプロイ > 新しいデプロイ > ウェブアプリ
  *    - 実行ユーザー: 自分
  *    - アクセス: 全員
- * 6. デプロイURLを js/config.js の GAS_WEB_APP_URL に設定
+ * 4. デプロイURLを js/config.js の GAS_WEB_APP_URL に設定
  */
 
-const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE';
-const SHEET_NAME = '購入履歴';
+const SPREADSHEET_ID = '18av7_xrjaCsDpswipkJ20OP5lsMZJ6cOZytTCQPiCJ0';
+const SHEET_NAME = '2026年';
+
+// シート列定義（1始まり）
+const COL = {
+  RECEIPT: 1,        // 領収書
+  PURCHASE_DATE: 2,  // 購入日
+  PLACE: 3,          // 購入場所
+  ACCOUNT: 4,        // 名義
+  NUMBER: 5,         // 番号
+  MAIL_CODE: 6,      // メアド
+  ORDER_NUMBER: 7,   // 注文番号
+  CARD: 8,           // クレカ
+  DISCOUNT: 9,       // 割引率
+  PRODUCT: 10,       // 購入品
+  COLOR: 11,         // 色
+  QUANTITY: 12,      // 個数
+  UNIT_PRICE: 13,    // 定価
+  LIST_TOTAL: 14,    // 定価合計
+  ACTUAL_PRICE: 15,  // 実質価格
+  TOTAL: 16,         // 合計
+};
 
 /**
  * GET リクエスト（動作確認用）
  */
 function doGet(e) {
-  return ContentService
-    .createTextOutput(JSON.stringify({ status: 'ok', message: 'iPhone購入管理 API' }))
-    .setMimeType(ContentService.MimeType.JSON);
+  return jsonResponse({ status: 'ok', message: 'iPhone購入管理 API', sheet: SHEET_NAME });
 }
 
 /**
@@ -36,34 +55,27 @@ function doPost(e) {
       return jsonResponse({ success: false, error: '転記データがありません' });
     }
 
-    const sheet = getOrCreateSheet_();
-    const existingIds = getExistingPurchaseIds_(sheet);
+    const sheet = getSheet_();
+    const existingOrders = getExistingOrderNumbers_(sheet);
     const syncedIds = [];
-    const syncedAt = formatDateTime_(new Date());
 
     purchases.forEach(function (p) {
-      // 二重転記防止: 購入IDが既に存在する場合はスキップ
-      if (existingIds.has(p.purchaseId)) {
+      // 二重転記防止: 注文番号が既に存在する場合はスキップ（転記済み扱い）
+      if (existingOrders.has(String(p.orderNumber))) {
         syncedIds.push(p.purchaseId);
         return;
       }
 
-      sheet.appendRow([
-        p.purchaseId,
-        formatDateTime_(new Date(p.registeredAt)),
-        p.userId,
-        p.email,
-        p.model,
-        p.color,
-        p.quantity,
-        p.unitPrice,
-        p.totalAmount,
-        p.creditCard,
-        p.orderNumber,
-        syncedAt,
-      ]);
+      // アプリ側の購入IDでも二重チェック
+      if (p.purchaseId && isPurchaseIdSynced_(sheet, p.purchaseId)) {
+        syncedIds.push(p.purchaseId);
+        return;
+      }
 
-      existingIds.add(p.purchaseId);
+      const row = buildRow_(p);
+      sheet.appendRow(row);
+
+      existingOrders.add(String(p.orderNumber));
       syncedIds.push(p.purchaseId);
     });
 
@@ -74,56 +86,81 @@ function doPost(e) {
 }
 
 /**
- * シートを取得または作成し、ヘッダー行を設定
+ * シートを取得
  */
-function getOrCreateSheet_() {
+function getSheet_() {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  let sheet = ss.getSheetByName(SHEET_NAME);
-
+  const sheet = ss.getSheetByName(SHEET_NAME);
   if (!sheet) {
-    sheet = ss.insertSheet(SHEET_NAME);
-    sheet.appendRow([
-      '購入ID',
-      '登録日時',
-      '使用ID',
-      'メールアドレス',
-      '機種',
-      '色',
-      '個数',
-      '単価',
-      '合計金額',
-      '使用クレジットカード',
-      '注文番号',
-      '転記日時',
-    ]);
-    sheet.getRange(1, 1, 1, 12).setFontWeight('bold');
-    sheet.setFrozenRows(1);
+    throw new Error('「' + SHEET_NAME + '」シートが見つかりません');
   }
-
   return sheet;
 }
 
 /**
- * 既存の購入IDを取得（二重転記防止用）
+ * 購入データからシート行を構築（26列）
  */
-function getExistingPurchaseIds_(sheet) {
-  const ids = new Set();
-  const lastRow = sheet.getLastRow();
-  if (lastRow <= 1) return ids;
+function buildRow_(p) {
+  const row = new Array(26).fill('');
 
-  const values = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
-  values.forEach(function (row) {
-    if (row[0]) ids.add(String(row[0]));
-  });
+  row[COL.RECEIPT - 1] = false;
+  row[COL.PURCHASE_DATE - 1] = formatPurchaseDate_(new Date(p.registeredAt));
+  row[COL.PLACE - 1] = p.purchasePlace || 'apple';
+  row[COL.ACCOUNT - 1] = p.accountName || 'ゲスト';
+  row[COL.NUMBER - 1] = p.phoneNumber;
+  row[COL.MAIL_CODE - 1] = p.mailCode;
+  row[COL.ORDER_NUMBER - 1] = p.orderNumber;
+  row[COL.CARD - 1] = p.creditCard;
+  row[COL.DISCOUNT - 1] = p.discountRate || '';
+  row[COL.PRODUCT - 1] = p.model;
+  row[COL.COLOR - 1] = p.color;
+  row[COL.QUANTITY - 1] = p.quantity;
+  row[COL.UNIT_PRICE - 1] = p.unitPrice;
+  row[COL.LIST_TOTAL - 1] = formatYen_(p.listTotal);
+  row[COL.ACTUAL_PRICE - 1] = formatYen_(p.actualPrice);
+  row[COL.TOTAL - 1] = formatYen_(p.totalAmount);
 
-  return ids;
+  // 列17〜26（到着・販売関連）は空欄のまま
+
+  return row;
 }
 
 /**
- * 日時フォーマット
+ * 既存の注文番号を取得（二重転記防止用）
  */
-function formatDateTime_(date) {
-  return Utilities.formatDate(date, 'Asia/Tokyo', 'yyyy/MM/dd HH:mm:ss');
+function getExistingOrderNumbers_(sheet) {
+  const orders = new Set();
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 2) return orders;
+
+  // ヘッダーは2行目、データは3行目から
+  const values = sheet.getRange(3, COL.ORDER_NUMBER, lastRow - 2, 1).getValues();
+  values.forEach(function (row) {
+    if (row[0]) orders.add(String(row[0]));
+  });
+
+  return orders;
+}
+
+/**
+ * 購入IDがメモ欄等に記録済みか（将来拡張用、現状は注文番号で判定）
+ */
+function isPurchaseIdSynced_(sheet, purchaseId) {
+  return false;
+}
+
+/**
+ * 購入日フォーマット（M/D）
+ */
+function formatPurchaseDate_(date) {
+  return Utilities.formatDate(date, 'Asia/Tokyo', 'M/d');
+}
+
+/**
+ * 金額フォーマット（¥123,456）
+ */
+function formatYen_(amount) {
+  return '¥' + Number(amount).toLocaleString('ja-JP');
 }
 
 /**

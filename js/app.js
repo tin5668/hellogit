@@ -22,7 +22,6 @@ const App = {
       this.syncToSpreadsheet();
     });
 
-    // 購入追加完了イベント
     document.addEventListener('purchase-added', () => {
       this.showView('home');
       this.renderHome();
@@ -64,7 +63,6 @@ const App = {
       .map((p) => this.renderPurchaseItem(p))
       .join('');
 
-    // 削除ボタンイベント
     listEl.querySelectorAll('.purchase-delete').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         const id = e.target.dataset.id;
@@ -80,17 +78,20 @@ const App = {
       ? ''
       : `<button class="purchase-delete" data-id="${p.purchaseId}">削除</button>`;
 
+    const mailCode = p.mailCode || p.userId || '';
+    const model = p.model || '';
+
     return `
       <li class="purchase-item">
         <div class="purchase-item-header">
-          <span class="purchase-model">${this.escapeHtml(p.model)}</span>
+          <span class="purchase-model">${this.escapeHtml(model)}</span>
           <span class="purchase-status ${statusClass}">${statusText}</span>
         </div>
         <div class="purchase-detail">
           ${this.escapeHtml(p.color)}<br>
           ${p.quantity}台<br>
           <span class="amount-line">${this.formatCurrency(p.totalAmount)}</span>
-          ID：${this.escapeHtml(p.userId)}<br>
+          ID：${this.escapeHtml(mailCode)}<br>
           カード：${this.escapeHtml(p.creditCard)}<br>
           注文番号：${this.escapeHtml(p.orderNumber)}
         </div>

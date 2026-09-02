@@ -4,10 +4,12 @@
 
 const AddForm = {
   state: {
-    userId: null,
-    email: null,
+    mailCode: null,     // メアド（使用ID）
+    phoneNumber: null,  // 番号
     model: null,
     unitPrice: 0,
+    actualPrice: 0,
+    discountRate: 0,
     color: null,
     quantity: 1,
     creditCard: null,
@@ -26,10 +28,12 @@ const AddForm = {
 
   reset() {
     this.state = {
-      userId: null,
-      email: null,
+      mailCode: null,
+      phoneNumber: null,
       model: null,
       unitPrice: 0,
+      actualPrice: 0,
+      discountRate: 0,
       color: null,
       quantity: 1,
       creditCard: null,
@@ -40,18 +44,16 @@ const AddForm = {
     document.getElementById('order-number').value = '';
     document.getElementById('duplicate-warning').classList.remove('visible');
 
-    // 選択状態をリセット
     document.querySelectorAll('.choice-btn.selected').forEach((btn) => {
       btn.classList.remove('selected');
     });
 
-    this.renderEmails();
+    this.renderPhoneNumber();
     this.updateTotal();
     this.validate();
   },
 
   bindEvents() {
-    // 個数操作
     document.getElementById('qty-minus').addEventListener('click', () => {
       if (this.state.quantity > 1) {
         this.state.quantity--;
@@ -74,7 +76,6 @@ const AddForm = {
       this.validate();
     });
 
-    // 注文番号
     document.getElementById('order-number').addEventListener('input', (e) => {
       this.state.orderNumber = e.target.value.trim();
       const warning = document.getElementById('duplicate-warning');
@@ -86,7 +87,6 @@ const AddForm = {
       this.validate();
     });
 
-    // 登録ボタン
     document.getElementById('btn-submit').addEventListener('click', () => {
       this.submit();
     });
@@ -97,7 +97,7 @@ const AddForm = {
     container.innerHTML = CONFIG.userIds
       .map(
         (u) =>
-          `<button type="button" class="choice-btn" data-value="${u.id}">${u.id}</button>`
+          `<button type="button" class="choice-btn" data-id="${u.id}" data-number="${u.number}">${u.id}</button>`
       )
       .join('');
 
@@ -105,37 +105,23 @@ const AddForm = {
       btn.addEventListener('click', () => {
         container.querySelectorAll('.choice-btn').forEach((b) => b.classList.remove('selected'));
         btn.classList.add('selected');
-        this.state.userId = btn.dataset.value;
-        this.state.email = null;
-        this.renderEmails();
+        this.state.mailCode = btn.dataset.id;
+        this.state.phoneNumber = btn.dataset.number;
+        this.renderPhoneNumber();
         this.validate();
       });
     });
   },
 
-  renderEmails() {
-    const container = document.getElementById('choices-email');
-    if (!this.state.userId) {
+  renderPhoneNumber() {
+    const container = document.getElementById('choices-phone');
+    if (!this.state.mailCode) {
       container.innerHTML = '<p style="color:#86868b;font-size:0.875rem;">先にIDを選択してください</p>';
       return;
     }
 
-    const user = CONFIG.userIds.find((u) => u.id === this.state.userId);
-    container.innerHTML = user.emails
-      .map(
-        (email) =>
-          `<button type="button" class="choice-btn" data-value="${email}">${email}</button>`
-      )
-      .join('');
-
-    container.querySelectorAll('.choice-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        container.querySelectorAll('.choice-btn').forEach((b) => b.classList.remove('selected'));
-        btn.classList.add('selected');
-        this.state.email = btn.dataset.value;
-        this.validate();
-      });
-    });
+    container.innerHTML =
+      `<div class="choice-btn selected" style="cursor:default;">${this.state.phoneNumber}</div>`;
   },
 
   renderModels() {
@@ -153,6 +139,7 @@ const AddForm = {
         btn.classList.add('selected');
         this.state.model = btn.dataset.value;
         this.state.unitPrice = parseInt(btn.dataset.price, 10);
+        this.recalcActualPrice();
         this.updateTotal();
         this.validate();
       });
@@ -182,8 +169,10 @@ const AddForm = {
     const container = document.getElementById('choices-card');
     container.innerHTML = CONFIG.creditCards
       .map(
-        (c) =>
-          `<button type="button" class="choice-btn" data-value="${c}">${c}</button>`
+        (c) => {
+          const rateLabel = c.discountRate > 0 ? ` (${c.discountRate}%)` : '';
+          return `<button type="button" class="choice-btn" data-value="${c.name}" data-rate="${c.discountRate}">${c.name}${rateLabel}</button>`;
+        }
       )
       .join('');
 
@@ -192,9 +181,17 @@ const AddForm = {
         container.querySelectorAll('.choice-btn').forEach((b) => b.classList.remove('selected'));
         btn.classList.add('selected');
         this.state.creditCard = btn.dataset.value;
+        this.state.discountRate = parseInt(btn.dataset.rate, 10);
+        this.recalcActualPrice();
+        this.updateTotal();
         this.validate();
       });
     });
+  },
+
+  recalcActualPrice() {
+    if (!this.state.model) return;
+    this.state.actualPrice = CONFIG.getActualPrice(this.state.model, this.state.discountRate);
   },
 
   updateTotal() {
@@ -207,15 +204,18 @@ const AddForm = {
       return;
     }
 
-    const total = this.state.unitPrice * this.state.quantity;
-    breakdown.textContent = `単価：${this.state.unitPrice.toLocaleString('ja-JP')}円 × ${this.state.quantity}台`;
-    amount.textContent = total.toLocaleString('ja-JP') + '円';
+    const listTotal = this.state.unitPrice * this.state.quantity;
+    breakdown.textContent = `定価：${this.state.unitPrice.toLocaleString('ja-JP')}円 × ${this.state.quantity}台`;
+    if (this.state.actualPrice && this.state.actualPrice !== this.state.unitPrice) {
+      breakdown.textContent += `（実質：${this.state.actualPrice.toLocaleString('ja-JP')}円/台）`;
+    }
+    amount.textContent = listTotal.toLocaleString('ja-JP') + '円';
   },
 
   validate() {
     const isValid =
-      this.state.userId &&
-      this.state.email &&
+      this.state.mailCode &&
+      this.state.phoneNumber &&
       this.state.model &&
       this.state.color &&
       this.state.quantity >= 1 &&
@@ -226,21 +226,28 @@ const AddForm = {
   },
 
   submit() {
-    if (!this.state.userId || !this.state.email || !this.state.model ||
+    if (!this.state.mailCode || !this.state.phoneNumber || !this.state.model ||
         !this.state.color || !this.state.creditCard || !this.state.orderNumber) {
       return;
     }
 
+    const listTotal = this.state.unitPrice * this.state.quantity;
+
     const purchase = {
       purchaseId: Storage.generatePurchaseId(),
       registeredAt: new Date().toISOString(),
-      userId: this.state.userId,
-      email: this.state.email,
+      mailCode: this.state.mailCode,
+      phoneNumber: this.state.phoneNumber,
+      accountName: CONFIG.defaults.accountName,
+      purchasePlace: CONFIG.defaults.purchasePlace,
       model: this.state.model,
       color: this.state.color,
       quantity: this.state.quantity,
       unitPrice: this.state.unitPrice,
-      totalAmount: this.state.unitPrice * this.state.quantity,
+      actualPrice: this.state.actualPrice,
+      listTotal: listTotal,
+      totalAmount: listTotal,
+      discountRate: this.state.discountRate || '',
       creditCard: this.state.creditCard,
       orderNumber: this.state.orderNumber,
       synced: false,

@@ -62,12 +62,12 @@
         <div class="choice-group" id="choices-user-id"></div>
       </div>
 
-      <!-- 2. メールアドレス -->
+      <!-- 2. 番号（ID選択で自動表示） -->
       <div class="form-step" data-step="2">
         <div class="form-step-label">
-          <span class="form-step-number">2</span> 使用するメールアドレス
+          <span class="form-step-number">2</span> 番号
         </div>
-        <div class="choice-group" id="choices-email"></div>
+        <div class="choice-group" id="choices-phone"></div>
       </div>
 
       <!-- 3. 機種 -->
@@ -112,7 +112,7 @@
         <div class="form-step-label">
           <span class="form-step-number">7</span> 注文番号
         </div>
-        <input type="text" class="text-input" id="order-number" placeholder="例: W123456789" autocomplete="off" autocapitalize="characters">
+        <input type="text" class="text-input" id="order-number" placeholder="例: 1330673695" autocomplete="off" inputmode="numeric">
         <div class="warning-banner" id="duplicate-warning">
           ⚠ 同じ注文番号がすでに登録されています
         </div>
