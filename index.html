@@ -54,20 +54,20 @@
     </header>
 
     <div class="form-container">
-      <!-- 1. 使用ID -->
+      <!-- 1. 番号 -->
       <div class="form-step" data-step="1">
         <div class="form-step-label">
-          <span class="form-step-number">1</span> 使用するID
-        </div>
-        <div class="choice-group" id="choices-user-id"></div>
-      </div>
-
-      <!-- 2. 番号（ID選択で自動表示） -->
-      <div class="form-step" data-step="2">
-        <div class="form-step-label">
-          <span class="form-step-number">2</span> 番号
+          <span class="form-step-number">1</span> 番号
         </div>
         <div class="choice-group" id="choices-phone"></div>
+      </div>
+
+      <!-- 2. メアド -->
+      <div class="form-step" data-step="2">
+        <div class="form-step-label">
+          <span class="form-step-number">2</span> メアド
+        </div>
+        <input type="text" class="text-input" id="mail-code" placeholder="例: 226" autocomplete="off" inputmode="numeric">
       </div>
 
       <!-- 3. 機種 -->

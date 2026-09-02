@@ -4,8 +4,8 @@
 
 const AddForm = {
   state: {
-    mailCode: null,     // メアド（使用ID）
     phoneNumber: null,  // 番号
+    mailCode: '',       // メアド（手入力）
     model: null,
     unitPrice: 0,
     actualPrice: 0,
@@ -17,7 +17,7 @@ const AddForm = {
   },
 
   init() {
-    this.renderUserIds();
+    this.renderPhoneNumbers();
     this.renderModels();
     this.renderColors();
     this.renderCards();
@@ -28,8 +28,8 @@ const AddForm = {
 
   reset() {
     this.state = {
-      mailCode: null,
       phoneNumber: null,
+      mailCode: '',
       model: null,
       unitPrice: 0,
       actualPrice: 0,
@@ -41,6 +41,7 @@ const AddForm = {
     };
 
     document.getElementById('qty-input').value = '1';
+    document.getElementById('mail-code').value = '';
     document.getElementById('order-number').value = '';
     document.getElementById('duplicate-warning').classList.remove('visible');
 
@@ -48,7 +49,6 @@ const AddForm = {
       btn.classList.remove('selected');
     });
 
-    this.renderPhoneNumber();
     this.updateTotal();
     this.validate();
   },
@@ -76,6 +76,11 @@ const AddForm = {
       this.validate();
     });
 
+    document.getElementById('mail-code').addEventListener('input', (e) => {
+      this.state.mailCode = e.target.value.trim();
+      this.validate();
+    });
+
     document.getElementById('order-number').addEventListener('input', (e) => {
       this.state.orderNumber = e.target.value.trim();
       const warning = document.getElementById('duplicate-warning');
@@ -92,12 +97,12 @@ const AddForm = {
     });
   },
 
-  renderUserIds() {
-    const container = document.getElementById('choices-user-id');
-    container.innerHTML = CONFIG.userIds
+  renderPhoneNumbers() {
+    const container = document.getElementById('choices-phone');
+    container.innerHTML = CONFIG.phoneNumbers
       .map(
-        (u) =>
-          `<button type="button" class="choice-btn" data-id="${u.id}" data-number="${u.number}">${u.id}</button>`
+        (num) =>
+          `<button type="button" class="choice-btn" data-value="${num}">${num}</button>`
       )
       .join('');
 
@@ -105,23 +110,10 @@ const AddForm = {
       btn.addEventListener('click', () => {
         container.querySelectorAll('.choice-btn').forEach((b) => b.classList.remove('selected'));
         btn.classList.add('selected');
-        this.state.mailCode = btn.dataset.id;
-        this.state.phoneNumber = btn.dataset.number;
-        this.renderPhoneNumber();
+        this.state.phoneNumber = btn.dataset.value;
         this.validate();
       });
     });
-  },
-
-  renderPhoneNumber() {
-    const container = document.getElementById('choices-phone');
-    if (!this.state.mailCode) {
-      container.innerHTML = '<p style="color:#86868b;font-size:0.875rem;">先にIDを選択してください</p>';
-      return;
-    }
-
-    container.innerHTML =
-      `<div class="choice-btn selected" style="cursor:default;">${this.state.phoneNumber}</div>`;
   },
 
   renderModels() {
@@ -214,8 +206,8 @@ const AddForm = {
 
   validate() {
     const isValid =
-      this.state.mailCode &&
       this.state.phoneNumber &&
+      this.state.mailCode.length > 0 &&
       this.state.model &&
       this.state.color &&
       this.state.quantity >= 1 &&
@@ -226,7 +218,7 @@ const AddForm = {
   },
 
   submit() {
-    if (!this.state.mailCode || !this.state.phoneNumber || !this.state.model ||
+    if (!this.state.phoneNumber || !this.state.mailCode || !this.state.model ||
         !this.state.color || !this.state.creditCard || !this.state.orderNumber) {
       return;
     }

@@ -78,7 +78,6 @@ const App = {
       ? ''
       : `<button class="purchase-delete" data-id="${p.purchaseId}">削除</button>`;
 
-    const mailCode = p.mailCode || p.userId || '';
     const model = p.model || '';
 
     return `
@@ -91,7 +90,8 @@ const App = {
           ${this.escapeHtml(p.color)}<br>
           ${p.quantity}台<br>
           <span class="amount-line">${this.formatCurrency(p.totalAmount)}</span>
-          ID：${this.escapeHtml(mailCode)}<br>
+          メアド：${this.escapeHtml(p.mailCode || '')}<br>
+          番号：${this.escapeHtml(p.phoneNumber || '')}<br>
           カード：${this.escapeHtml(p.creditCard)}<br>
           注文番号：${this.escapeHtml(p.orderNumber)}
         </div>
